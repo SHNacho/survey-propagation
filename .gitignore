@@ -2,3 +2,5 @@ compile_flags.txt
 *.o
 main
 *.cnf
+data/*.txt
+.vscode

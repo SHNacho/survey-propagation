@@ -4,8 +4,14 @@
 
 using namespace std;
 
-int main(int argc, char* argv[]){
-
-    SPSolver solver(0.04);
+int main(){
+	string file = "data/cnf_1.txt";
+	FactorGraph fg(file);
+    SPSolver solver(&fg, 0.04);
+    if(solver.surveyInspiredDecimation()){
+        cout << "OK" << endl;
+    } else {
+        cout << ":-(" << endl; 
+    }
     return 0;
 }

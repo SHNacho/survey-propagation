@@ -25,7 +25,7 @@ public:
 	float alpha;
 
 	// Methods:
-	SPSolver(float alpha);
+	SPSolver(FactorGraph* fg, float alpha);
 	/**
 	 * @brief Itera sobre todas las cláusulas, actualizando
 	 * las surveys de cada una de sus variables

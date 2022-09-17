@@ -22,7 +22,8 @@ public:
 	FactorGraph* fg;
 	vector< pair<int, int> > sol;
 
-	float alpha;
+	float alpha;	// Fracción de variables a asignar
+	int SPIter;		// Número de iteraciones de SP
 
 	// Methods:
 	SPSolver(FactorGraph* fg, float alpha);

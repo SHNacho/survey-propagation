@@ -98,9 +98,6 @@ bool FactorGraph::fix(Variable* var, int val){
 	var->value = val;
 	unassigned_vars--;
 	
-	for(Literal* l : var->literals){
-		l->cl->unassigned_literals--;
-	}
 	
 	return simplify(var);
 }
@@ -110,16 +107,20 @@ bool FactorGraph::fix(Variable* var, int val){
 */
 bool FactorGraph::simplify(Variable* var){
 	// Para cada cláusula de la variable
-	for(Literal* l : var->literals){
+	for(Literal* l : var->literals) if(l->enabled){
 		// Se deshabilita la arista
 		l->enabled = false;
 
 		Clause* c = l->cl;
+		c->unassigned_literals--;
 
 		if(!c->satisfied){
 			// Se comprueba si la asignación satisface la cláusula
-			if(l->type == var->value)
+			if(l->type == var->value){
 				c->satisfied = true;
+				for (Literal* l : c->literals)
+					l->enabled = false;
+			}
 			// Si no la satisface se comprueba si es unitaria
 			else if(c->unassigned_literals == 1){
 				// Se asigna la variable de la cláusula

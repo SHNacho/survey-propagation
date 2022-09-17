@@ -8,6 +8,7 @@ SPSolver::SPSolver(FactorGraph* fg, float alpha){
 	this->fg = fg;
 	rng = default_random_engine {};
 	this->alpha = alpha;
+	this-> SPIter = 0;
 }
 
 double SPSolver::iterate(){
@@ -17,7 +18,7 @@ double SPSolver::iterate(){
 	vector<Clause*> clauses = this->fg->clauses;
 	shuffle(clauses.begin(), clauses.end(), this->rng);
 
-	for(Clause* c : clauses){
+	for(Clause* c : clauses) if(!c->satisfied){
 		eps = updateSurvey(c);	
 		if(eps > maxeps)
 			maxeps = eps;
@@ -27,9 +28,9 @@ double SPSolver::iterate(){
 }
 
 double SPSolver::updateSurvey(Clause* c){
-	double m;	
-	double p;	
-	double wt, wn;
+	double u;	
+	double s;	
+	double pu, ps, pz;
 	vector<double> prods;
 	double allprod = 1.0;
 	int zeroes = 0;
@@ -37,36 +38,43 @@ double SPSolver::updateSurvey(Clause* c){
 
 	for(Literal* l : c->literals){
 		Variable* var = l->var;
-		if(var->value==0){
+		if(l->enabled && var->value==0){
 			//	Si type = -1 : V_a^u(j) = V_+(j) ; V_a^s(j) = V_-(j) \ a
 			//	Si type =  1 : V_a^u(j) = V_-(j) ; V_a^s(j) = V_+(j) \ a
 			//	var->m  --> Pi€V_+(j) (1-eta)
 			//	var->p  --> Pi€V_-(j) (1-eta)
 			if(l->type < 0){ // Si el literal es negativo
-				m = var->mzero ? 0 : var->m; // Pi€V_a^u(j) (1-eta)
+				u = var->mzero ? 0 : var->m; // Pi€V_a^u(j) (1-eta)
 				// Pi€V_a^s(j) (1-eta)
 				if(var->pzero == 0)
-					p = var->p / (1 - l->survey); 
+					s = var->p / (1 - l->survey); 
 				else if(var->pzero == 1 && (1 - l->survey) < EPS)
-					p = var->p;
+					s = var->p;
 				else
-					p = 0.0;
-				wn = p * (1.0 - m);  // (1 - u) * s
-				wt = m; // u
+					s = 0.0;
 			} else { // Si el literal es positivo
-				p = var->pzero ? 0.0 : var->p; // Pi€V_a^u(j) (1-eta)
+				u = var->pzero ? 0.0 : var->p; // Pi€V_a^u(j) (1-eta)
 				// Pi€V_a^s(j) (1-eta)
 				if(var->mzero == 0)
-					m = var->m / (1.0 - l->survey);
+					s = var->m / (1.0 - l->survey);
 				else if (var->mzero == 1 && (1.0 - l->survey) < EPS)
-					m = var->m;
+					s = var->m;
 				else
-					m = 0.0;
-				wn = m * (1.0 - p); // (1 - u) * s
-				wt = p; // u
+					s = 0.0;
 			}	
+
+			pu = (1 - u) * s;
+			ps = (1 - s) * u;
+			pz = s * u;
 			
-			double prod = wn / (wn + wt); 
+			
+			double prod;
+			if (pu == 0){
+				prod = 0.0;
+			} else {
+				prod = pu / (pu + ps + pz);
+			}
+
 			if (isnan(prod)){
 				cout << "Prod is nan" << endl;
 			}
@@ -83,12 +91,12 @@ double SPSolver::updateSurvey(Clause* c){
 
 	int i = 0;
 	eps = 0.0;
-	for(Literal* l : c->literals) if (l->enabled){
+	for(Literal* l : c->literals){ 
 		Variable* var = l->var;
-		if(var->value==0){
+		if(l->enabled && var->value==0){
 			double newsurvey = 0.0;
 			if(!zeroes){
-				newsurvey = allprod/prods[i];
+				newsurvey = allprod / prods[i];
 			} else if(zeroes == 1 && prods[i] < EPS) {
 				newsurvey = allprod;
 			} else {
@@ -98,7 +106,7 @@ double SPSolver::updateSurvey(Clause* c){
 			if(l->type < 0){
 				if(1.0 - l->survey > EPS) {
 					if(1.0 - newsurvey > EPS) {
-						var->p *= (1.0 - newsurvey) / ( 1.0 - l->survey);
+						var->p *= ((1.0 - newsurvey) / ( 1.0 - l->survey));
 					} else {
 						var->p /= (1.0 - l->survey);
 						var->pzero++;
@@ -112,7 +120,7 @@ double SPSolver::updateSurvey(Clause* c){
 			} else {
 				if(1 - l->survey > EPS){
 					if(1.0 - newsurvey > EPS){
-						var->m *= (1.0 - newsurvey) / (1.0 - l->survey);
+						var->m *= ((1.0 - newsurvey) / (1.0 - l->survey));
 					} else {
 						var->m /= (1.0 - l->survey);
 						var->mzero++;
@@ -124,6 +132,7 @@ double SPSolver::updateSurvey(Clause* c){
 					}
 				}
 			}
+
 			double diff = abs(l->survey - newsurvey);
       		if (eps < diff)
         		eps = abs(diff);
@@ -140,6 +149,7 @@ bool SPSolver::surveyPropagation(){
 	int iter = 0;
 	computeSubProducts();
 	do{
+		SPIter++;
 		eps = iterate();
 	} while((eps > EPSILON) && (iter++ < ITERATIONS));
 	if(eps <= EPSILON){
@@ -204,19 +214,28 @@ void SPSolver::unitPropagation(){
 
 
 bool SPSolver::surveyInspiredDecimation(){
+	int SIDIterations = 0;
+	SPIter = 0;
 	// Asignación aleatoria de las surveys
 	std::uniform_real_distribution<float> distribution(0.0, 1.0);
+
+	// Se realiza unitPropagation por si hay cláusulas unitarias
+	unitPropagation();
+
+	// Inicialización aleatoria de las surveys
 	for(Literal* l : fg->literals){
 		if(l->enabled){
 			l->survey = distribution(rng);
 		}
 	}
+
 	// Se cualculan cuantas variables se asignarán en cada paso
 	int fixPerStep = fg->unassigned_vars * alpha > 1 ? fg->unassigned_vars * alpha : 1;
-	// Se realiza unitPropagation por si hay cláusulas unitarias
-	unitPropagation();
+
 	// Mientras que survey propagation llegue a un estado de convergencia
 	while(surveyPropagation() && fg->unassigned_vars){
+		SIDIterations++;
+
 		double summag = 0;		// Suma de los sesgos
 		double maxmag; 			// Máximo sesgo obtenido
 		
@@ -224,13 +243,7 @@ bool SPSolver::surveyInspiredDecimation(){
 		for(Variable* v : fg->variables) if(v->value == 0){
 			computeBias(v);
 			maxmag=v->wp > v->wm ? v->wp : v->wm;
-			if(isnan(maxmag)){
-				cout << "Aqui" << endl;
-			}
 			summag += maxmag;
-			if(isnan(summag)){
-				cout << "Aqui" << endl;
-			}
 		}
 		
 		// Se ordenan las variables en función del sesgo
@@ -240,6 +253,7 @@ bool SPSolver::surveyInspiredDecimation(){
 		// Si se llega a un estado paramagnético, se resuelve por walksat
 		if(summag/fg->unassigned_vars < PARAMAGNET){
 			//WALKSAT
+			cout << "Iteraciones de SP: " << SPIter << endl;
 			cout << "WALKSAT" << endl;
 			return true;
 		}
@@ -256,6 +270,7 @@ bool SPSolver::surveyInspiredDecimation(){
 			int val = (*it)->wp > (*it)->wm ? -1 : 1;
 			if (!fg->fix(*it, val))
 				return false;
+
 			it++;
 		}
 	}

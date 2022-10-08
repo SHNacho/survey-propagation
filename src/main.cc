@@ -9,8 +9,8 @@ int main(){
     int solved = 0;
     for (int i = 1; i <= 50; ++i){
         file = "data/S-4.21/cnf_" + to_string(i) + ".txt";
-	    FactorGraph fg(file);
-        SPSolver solver(&fg, 0.04);
+	    sp::FactorGraph fg(file);
+        sp::SPSolver solver(&fg, 0.02);
         if(solver.surveyInspiredDecimation()){
             solved++;
             cout << "OK" << endl;

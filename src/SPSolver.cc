@@ -9,6 +9,7 @@ namespace sp{
 	SPSolver::SPSolver(FactorGraph* fg, float alpha){
 		this->fg = fg;
 		rng = default_random_engine {};
+		rng.seed(150);
 		this->alpha = alpha;
 		this-> SPIter = 0;
 	}
@@ -230,8 +231,6 @@ namespace sp{
 			}
 		}
 
-		// Se cualculan cuantas variables se asignarán en cada paso
-		int fixPerStep = fg->unassigned_vars * alpha > 1 ? fg->unassigned_vars * alpha : 1;
 
 		// Mientras que survey propagation llegue a un estado de convergencia
 		while(surveyPropagation() && fg->unassigned_vars){
@@ -252,14 +251,17 @@ namespace sp{
 			sort(sortedVars.begin(), sortedVars.end(), biasComparator);
 
 			// Si se llega a un estado paramagnético, se resuelve por walksat
+			cout << summag/fg->unassigned_vars << endl;
 			if(summag/fg->unassigned_vars < PARAMAGNET){
 				//WALKSAT
 				cout << "Iteraciones de SP: " << SPIter << endl;
 				cout << "WALKSAT" << endl;
 				return WalkSat();
 			}
-
+        	printf("Variables no asignadas en SP: %d\n", fg->unassigned_vars);
 			// Asignación de las variables ordenadas por bias
+			// Se cualculan cuantas variables se asignarán en cada paso
+			int fixPerStep = fg->unassigned_vars * alpha > 1 ? fg->unassigned_vars * alpha : 1;
 			int aux = fixPerStep;
 			while(fg->unassigned_vars && aux--){
 				vector<Variable*>::iterator it = sortedVars.begin();

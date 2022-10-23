@@ -15,7 +15,7 @@ namespace sp{
 	
 		// SP constants
 		const float PARAMAGNET = 0.01;
-		const float EPSILON = 0.01;
+		const float EPSILON = 0.001;
 		const double EPS = 1.0e-16;
 		const int ITERATIONS = 1000;
 	

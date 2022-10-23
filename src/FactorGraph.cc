@@ -40,7 +40,7 @@ namespace sp{
 
 	vector<Clause*> Variable::TLC(){
 		vector<Clause*> vTLC;
-		for(Literal* l : literals){
+		for(Literal* l : literals) if(l->enabled){
 			Clause* c = l->cl;
 			if(!c->satisfied){ // Quitamos las que ya se hayan satisfecho por SP
 				if(this->value == l->type){
@@ -95,7 +95,7 @@ namespace sp{
 
 	int Clause::NT(){
 		int count = 0;
-		for(Literal* l : literals){
+		for(Literal* l : literals) if(l->enabled){
 			Variable* v = l->var;
 			if(l->type == v->value) count++;		
 		}

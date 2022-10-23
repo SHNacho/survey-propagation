@@ -5,12 +5,13 @@
 using namespace std;
 
 int main(){
+	// string file = "data/prueba.cnf";
 	string file = "data/cnf_1.txt";
     int solved = 0;
     for (int i = 1; i <= 50; ++i){
-        file = "data/S-4.21/cnf_" + to_string(i) + ".txt";
+        // file = "data/S-4.21/cnf_" + to_string(i) + ".txt";
 	    sp::FactorGraph fg(file);
-        sp::SPSolver solver(&fg, 0.02);
+        sp::SPSolver solver(&fg, 0.04);
         if(solver.surveyInspiredDecimation()){
             solved++;
             cout << "OK" << endl;

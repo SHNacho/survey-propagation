@@ -9,6 +9,7 @@ namespace sp{
 	SPSolver::SPSolver(FactorGraph* fg, float alpha){
 		this->fg = fg;
 		rng = default_random_engine {};
+		rng.seed(9876);
 		this->alpha = alpha;
 		this-> SPIter = 0;
 	}
@@ -269,7 +270,7 @@ namespace sp{
 				// variables por lo que se recalcula
 				computeBias(*it);
 				int val = (*it)->wp > (*it)->wm ? -1 : 1;
-				if (!fg->fix(*it, val))
+				if (!fg->fix(*it, val, true))
 					return false;
 
 				it++;
